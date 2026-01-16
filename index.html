@@ -19,9 +19,17 @@
                 <div id="danmakuContainer" class="danmaku-container"></div>
             </div>
             
-            <div class="side-panel">
-                <div class="qr-section">
-                    <h2>扫码发送弹幕</h2>
+            <div class="side-panel" id="sidePanel">
+                <div class="panel-header">
+                    <h2>弹幕控制面板</h2>
+                    <button id="togglePanel" class="toggle-panel-btn" title="收起/展开面板">
+                        ◀
+                    </button>
+                </div>
+                
+                <div class="panel-content">
+                    <div class="qr-section">
+                        <h2>扫码发送弹幕</h2>
                     <div class="qr-code-container">
                         <img id="qrCode" src="qrcode.png" alt="QR Code" onerror="this.style.display='none'">
                         <p id="qrCodeError" class="error-message" style="display: none;">
@@ -41,10 +49,337 @@
                     <p>在线人数: <span id="onlineCount">0</span></p>
                     <p>弹幕总数: <span id="danmakuCount">0</span></p>
                 </div>
+                
+                    <div class="clear-section">
+                        <button id="clearDanmaku" class="clear-button">
+                            🗑️ 清除历史弹幕
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <script src="client.js"></script>
+    <!-- Custom Modal Dialog -->
+    <div id="modalOverlay" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-icon">⚠️</div>
+            <h3 id="modalTitle" class="modal-title">确认操作</h3>
+            <p id="modalMessage" class="modal-message">确定要执行此操作吗？</p>
+            <div class="modal-buttons">
+                <button id="modalCancel" class="modal-btn modal-btn-cancel">取消</button>
+                <button id="modalConfirm" class="modal-btn modal-btn-confirm">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="danmaku-client.js"></script>
+    <script>
+        // Initialize danmaku client
+        const client = new DanmakuClient({
+            useSSE: window.USE_SSE !== false, // Use SSE by default
+            apiBase: window.API_BASE || window.location.origin,
+            onMessage: handleDanmakuMessage,
+            onConnect: handleConnect,
+            onError: handleError,
+            onDisconnect: handleDisconnect
+        });
+
+        // Track statistics
+        let danmakuCount = 0;
+        let onlineCount = 0;
+
+        // Handle incoming danmaku messages
+        function handleDanmakuMessage(data) {
+            if (data.type === 'danmaku') {
+                displayDanmaku(data);
+                danmakuCount++;
+                updateStats();
+            } else if (data.type === 'welcome') {
+                console.log('Connected to danmaku server');
+            } else if (data.type === 'history') {
+                // Load historical danmaku
+                data.messages.forEach(msg => displayDanmaku(msg));
+                danmakuCount = data.messages.length;
+                updateStats();
+            } else if (data.type === 'clear') {
+                // Clear all displayed danmaku
+                clearDisplayedDanmaku();
+                danmakuCount = 0;
+                updateStats();
+                console.log('Danmaku history cleared');
+            } else if (data.type === 'stats') {
+                // Update online count from server
+                if (data.online !== undefined) {
+                    onlineCount = data.online;
+                    updateStats();
+                }
+            }
+        }
+
+        // Handle connection
+        function handleConnect() {
+            showConnectionStatus('已连接', 'connected');
+        }
+
+        // Handle disconnection
+        function handleDisconnect() {
+            showConnectionStatus('连接断开', 'disconnected');
+        }
+
+        // Handle errors
+        function handleError(error) {
+            console.error('Danmaku client error:', error);
+            showConnectionStatus('连接错误', 'error');
+        }
+
+        // Display danmaku on video
+        function displayDanmaku(data) {
+            const container = document.getElementById('danmakuContainer');
+            const danmaku = document.createElement('div');
+            danmaku.className = 'danmaku-item';
+            danmaku.textContent = data.text || '';
+            danmaku.style.color = data.color || '#FFFFFF';
+            danmaku.style.fontSize = (data.fontSize || 24) + 'px';
+            danmaku.style.position = 'absolute';
+            danmaku.style.whiteSpace = 'nowrap';
+            danmaku.style.textShadow = '2px 2px 4px rgba(0,0,0,0.8)';
+            
+            // Random vertical position
+            const maxTop = container.clientHeight - 50;
+            const top = Math.random() * maxTop;
+            danmaku.style.top = top + 'px';
+            
+            // Start from right edge
+            danmaku.style.left = container.clientWidth + 'px';
+            
+            container.appendChild(danmaku);
+            
+            // Animate danmaku
+            const duration = (data.speed || 5) * 1000;
+            const startTime = Date.now();
+            
+            function animate() {
+                const elapsed = Date.now() - startTime;
+                const progress = elapsed / duration;
+                
+                if (progress >= 1) {
+                    container.removeChild(danmaku);
+                    return;
+                }
+                
+                const x = container.clientWidth * (1 - progress);
+                danmaku.style.left = x + 'px';
+                
+                requestAnimationFrame(animate);
+            }
+            
+            requestAnimationFrame(animate);
+        }
+
+        // Update statistics
+        function updateStats() {
+            document.getElementById('danmakuCount').textContent = danmakuCount;
+            document.getElementById('onlineCount').textContent = onlineCount;
+        }
+
+        // Show connection status
+        function showConnectionStatus(text, status) {
+            const statusEl = document.getElementById('connectionStatus');
+            if (!statusEl) {
+                const statusDiv = document.createElement('div');
+                statusDiv.id = 'connectionStatus';
+                statusDiv.className = 'connection-status';
+                document.querySelector('.side-panel').prepend(statusDiv);
+            }
+            const el = document.getElementById('connectionStatus');
+            el.textContent = text;
+            el.className = 'connection-status ' + status;
+        }
+
+        // Send danmaku from input
+        document.getElementById('sendDanmaku').addEventListener('click', sendLocalDanmaku);
+        document.getElementById('danmakuInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendLocalDanmaku();
+        });
+
+        async function sendLocalDanmaku() {
+            const input = document.getElementById('danmakuInput');
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            try {
+                await client.sendDanmaku(text);
+                input.value = '';
+            } catch (error) {
+                alert('发送弹幕失败: ' + error.message);
+            }
+        }
+
+        // Clear danmaku history
+        async function clearDanmakuHistory() {
+            showConfirmDialog('确定要清除所有历史弹幕吗？', async () => {
+                try {
+                    const result = await client.clearHistory();
+                    console.log('Clear result:', result);
+                    showSuccessDialog(result.message || '弹幕历史已清除');
+                } catch (error) {
+                    showErrorDialog('清除失败: ' + error.message);
+                }
+            });
+        }
+
+        // Clear all displayed danmaku from the screen
+        function clearDisplayedDanmaku() {
+            const container = document.getElementById('danmakuContainer');
+            container.innerHTML = '';
+            console.log('All displayed danmaku cleared');
+        }
+
+        // Add clear button event listener
+        document.getElementById('clearDanmaku').addEventListener('click', clearDanmakuHistory);
+
+        // Panel toggle functionality
+        const sidePanel = document.getElementById('sidePanel');
+        const toggleBtn = document.getElementById('togglePanel');
+        const mainContent = document.querySelector('.main-content');
+        let isPanelCollapsed = false;
+
+        toggleBtn.addEventListener('click', () => {
+            isPanelCollapsed = !isPanelCollapsed;
+            
+            if (isPanelCollapsed) {
+                sidePanel.classList.add('collapsed');
+                toggleBtn.textContent = '▶';
+                toggleBtn.title = '展开面板';
+                // Keep video area the same size, just hide panel
+                mainContent.style.gridTemplateColumns = '4fr 0fr';
+            } else {
+                sidePanel.classList.remove('collapsed');
+                toggleBtn.textContent = '◀';
+                toggleBtn.title = '收起面板';
+                // Restore normal grid layout
+                mainContent.style.gridTemplateColumns = '4fr 1fr';
+            }
+        });
+
+        // Modal dialog functions
+        function showConfirmDialog(message, onConfirm) {
+            const overlay = document.getElementById('modalOverlay');
+            const title = document.getElementById('modalTitle');
+            const messageEl = document.getElementById('modalMessage');
+            const icon = document.querySelector('.modal-icon');
+            const confirmBtn = document.getElementById('modalConfirm');
+            const cancelBtn = document.getElementById('modalCancel');
+
+            title.textContent = '确认操作';
+            messageEl.textContent = message;
+            icon.textContent = '⚠️';
+            confirmBtn.textContent = '确认';
+            confirmBtn.className = 'modal-btn modal-btn-confirm';
+            cancelBtn.style.display = 'inline-block';
+
+            overlay.style.display = 'flex';
+
+            const handleConfirm = () => {
+                overlay.style.display = 'none';
+                if (onConfirm) onConfirm();
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };
+
+            const handleCancel = () => {
+                overlay.style.display = 'none';
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };
+
+            confirmBtn.addEventListener('click', handleConfirm);
+            cancelBtn.addEventListener('click', handleCancel);
+        }
+
+        function showSuccessDialog(message) {
+            const overlay = document.getElementById('modalOverlay');
+            const title = document.getElementById('modalTitle');
+            const messageEl = document.getElementById('modalMessage');
+            const icon = document.querySelector('.modal-icon');
+            const confirmBtn = document.getElementById('modalConfirm');
+            const cancelBtn = document.getElementById('modalCancel');
+
+            title.textContent = '操作成功';
+            messageEl.textContent = message;
+            icon.textContent = '✅';
+            confirmBtn.textContent = '确定';
+            confirmBtn.className = 'modal-btn modal-btn-success';
+            cancelBtn.style.display = 'none';
+
+            overlay.style.display = 'flex';
+
+            const handleConfirm = () => {
+                overlay.style.display = 'none';
+                confirmBtn.removeEventListener('click', handleConfirm);
+            };
+
+            confirmBtn.addEventListener('click', handleConfirm);
+        }
+
+        function showErrorDialog(message) {
+            const overlay = document.getElementById('modalOverlay');
+            const title = document.getElementById('modalTitle');
+            const messageEl = document.getElementById('modalMessage');
+            const icon = document.querySelector('.modal-icon');
+            const confirmBtn = document.getElementById('modalConfirm');
+            const cancelBtn = document.getElementById('modalCancel');
+
+            title.textContent = '操作失败';
+            messageEl.textContent = message;
+            icon.textContent = '❌';
+            confirmBtn.textContent = '确定';
+            confirmBtn.className = 'modal-btn modal-btn-error';
+            cancelBtn.style.display = 'none';
+
+            overlay.style.display = 'flex';
+
+            const handleConfirm = () => {
+                overlay.style.display = 'none';
+                confirmBtn.removeEventListener('click', handleConfirm);
+            };
+
+            confirmBtn.addEventListener('click', handleConfirm);
+        }
+
+        // Load video
+        function loadVideo() {
+            const videoUrl = window.VIDEO_URL || './heng.mp4';
+            document.getElementById('videoSource').src = videoUrl;
+        }
+
+        // Disable fullscreen functionality
+        const video = document.getElementById('videoPlayer');
+        
+        // Disable fullscreen button in controls
+        video.addEventListener('fullscreenchange', (e) => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+        });
+        
+        // Disable webkit fullscreen
+        video.addEventListener('webkitfullscreenchange', (e) => {
+            if (document.webkitFullscreenElement) {
+                document.webkitExitFullscreen();
+            }
+        });
+        
+        // Prevent context menu on right click
+        video.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+        });
+
+        // Initialize
+        loadVideo();
+        client.connect();
+    </script>
 </body>
 </html>

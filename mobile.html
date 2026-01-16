@@ -75,6 +75,170 @@
 
     <div id="toast" class="toast"></div>
     
-    <script src="mobile.js"></script>
+    <script src="danmaku-client.js"></script>
+    <script>
+        // Initialize danmaku client
+        const client = new DanmakuClient({
+            useSSE: window.USE_SSE !== false, // Use SSE by default
+            apiBase: window.API_BASE || window.location.origin,
+            onMessage: handleDanmakuMessage,
+            onConnect: handleConnect,
+            onError: handleError,
+            onDisconnect: handleDisconnect
+        });
+
+        // Track recent danmaku
+        let recentDanmaku = [];
+        const MAX_RECENT = 5;
+        let selectedColor = '#FFFFFF';
+
+        // Handle incoming messages (for feedback)
+        function handleDanmakuMessage(data) {
+            if (data.type === 'danmaku' && data.text) {
+                console.log('Danmaku broadcast:', data.text);
+            }
+        }
+
+        // Handle connection
+        function handleConnect() {
+            updateConnectionStatus('已连接', 'connected');
+            showToast('已连接到弹幕服务器');
+        }
+
+        // Handle disconnection
+        function handleDisconnect() {
+            updateConnectionStatus('连接断开', 'disconnected');
+            showToast('连接已断开，正在重连...');
+        }
+
+        // Handle errors
+        function handleError(error) {
+            console.error('Danmaku client error:', error);
+            updateConnectionStatus('连接错误', 'error');
+        }
+
+        // Update connection status display
+        function updateConnectionStatus(text, status) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.textContent = text;
+            statusEl.className = 'status-value ' + status;
+        }
+
+        // Show toast message
+        function showToast(message, duration = 2000) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, duration);
+        }
+
+        // Color picker functionality
+        document.querySelectorAll('.color-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                selectedColor = btn.dataset.color;
+            });
+        });
+
+        // Character count
+        const input = document.getElementById('danmakuInput');
+        const charCount = document.getElementById('charCount');
+
+        input.addEventListener('input', () => {
+            charCount.textContent = input.value.length;
+        });
+
+        // Send danmaku
+        document.getElementById('sendBtn').addEventListener('click', sendDanmaku);
+
+        async function sendDanmaku() {
+            const text = input.value.trim();
+            
+            if (!text) {
+                showToast('请输入弹幕内容');
+                return;
+            }
+            
+            if (!client.isConnected()) {
+                showToast('未连接到服务器，请稍候');
+                return;
+            }
+
+            try {
+                await client.sendDanmaku(text, {
+                    color: selectedColor,
+                    fontSize: 24,
+                    speed: 5,
+                    position: 'random'
+                });
+                
+                // Add to recent list
+                addToRecentList(text, selectedColor);
+                
+                // Clear input
+                input.value = '';
+                charCount.textContent = '0';
+                
+                showToast('弹幕发送成功！');
+                
+            } catch (error) {
+                console.error('Failed to send danmaku:', error);
+                showToast('发送失败: ' + error.message);
+            }
+        }
+
+        // Add to recent danmaku list
+        function addToRecentList(text, color) {
+            recentDanmaku.unshift({ text, color, time: new Date() });
+            
+            if (recentDanmaku.length > MAX_RECENT) {
+                recentDanmaku.pop();
+            }
+            
+            updateRecentList();
+        }
+
+        // Update recent list display
+        function updateRecentList() {
+            const listEl = document.getElementById('recentList');
+            
+            if (recentDanmaku.length === 0) {
+                listEl.innerHTML = '<p class="empty-message">暂无发送记录</p>';
+                return;
+            }
+            
+            listEl.innerHTML = recentDanmaku.map(item => `
+                <div class="recent-item">
+                    <span class="recent-text" style="color: ${item.color};">${escapeHtml(item.text)}</span>
+                    <span class="recent-time">${formatTime(item.time)}</span>
+                </div>
+            `).join('');
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Format time
+        function formatTime(date) {
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return '刚刚';
+            if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+            if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+            return Math.floor(diff / 86400000) + '天前';
+        }
+
+        // Initialize
+        client.connect();
+    </script>
 </body>
 </html>

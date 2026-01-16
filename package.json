@@ -4,7 +4,10 @@
   "description": "Video player with real-time danmaku and QR code access",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "start:sse": "node server-sse.js",
+    "dev": "set USE_SSE=true && node server-sse.js",
+    "dev:ws": "set USE_SSE=false && node server.js"
   },
   "dependencies": {
     "ws": "^8.14.2",
