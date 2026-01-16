@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>发送弹幕</title>
+    <link rel="stylesheet" href="mobile.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📱 弹幕发送器</h1>
+            <p class="subtitle">实时发送弹幕到视频播放器</p>
+        </div>
+        
+        <div class="status-bar">
+            <div class="status-item">
+                <span class="status-label">连接状态</span>
+                <span id="connectionStatus" class="status-value disconnected">未连接</span>
+            </div>
+        </div>
+        
+        <div class="danmaku-section">
+            <div class="input-group">
+                <textarea 
+                    id="danmakuInput" 
+                    placeholder="输入弹幕内容..." 
+                    maxlength="100"
+                    rows="3"
+                ></textarea>
+                <div class="char-count">
+                    <span id="charCount">0</span>/100
+                </div>
+            </div>
+            
+            <div class="color-picker">
+                <p class="section-title">选择弹幕颜色</p>
+                <div class="color-options">
+                    <button class="color-btn active" data-color="#FFFFFF" style="background: #FFFFFF; border: 2px solid #667eea;"></button>
+                    <button class="color-btn" data-color="#FF0000" style="background: #FF0000;"></button>
+                    <button class="color-btn" data-color="#00FF00" style="background: #00FF00;"></button>
+                    <button class="color-btn" data-color="#0000FF" style="background: #0000FF;"></button>
+                    <button class="color-btn" data-color="#FFFF00" style="background: #FFFF00;"></button>
+                    <button class="color-btn" data-color="#FF00FF" style="background: #FF00FF;"></button>
+                    <button class="color-btn" data-color="#00FFFF" style="background: #00FFFF;"></button>
+                    <button class="color-btn" data-color="#FFA500" style="background: #FFA500;"></button>
+                    <button class="color-btn" data-color="#FF69B4" style="background: #FF69B4;"></button>
+                    <button class="color-btn" data-color="#98FB98" style="background: #98FB98;"></button>
+                </div>
+            </div>
+            
+            <button id="sendBtn" class="send-btn">
+                <span class="btn-text">发送弹幕</span>
+                <span class="btn-icon">🚀</span>
+            </button>
+        </div>
+        
+        <div class="recent-danmaku">
+            <p class="section-title">最近发送的弹幕</p>
+            <div id="recentList" class="recent-list">
+                <p class="empty-message">暂无发送记录</p>
+            </div>
+        </div>
+        
+        <div class="tips">
+            <p>💡 提示：</p>
+            <ul>
+                <li>弹幕将在视频上实时滚动显示</li>
+                <li>支持中英文输入</li>
+                <li>最多输入100个字符</li>
+                <li>请文明发言，共创良好氛围</li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+    
+    <script src="mobile.js"></script>
+</body>
+</html>

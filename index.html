@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频弹幕播放器</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>视频弹幕播放器</h1>
+        
+        <div class="main-content">
+            <div class="video-container">
+                <video id="videoPlayer" controls>
+                    <source id="videoSource" src="" type="video/mp4">
+                    您的浏览器不支持视频播放。
+                </video>
+                <div id="danmakuContainer" class="danmaku-container"></div>
+            </div>
+            
+            <div class="side-panel">
+                <div class="qr-section">
+                    <h2>扫码发送弹幕</h2>
+                    <div class="qr-code-container">
+                        <img id="qrCode" src="qrcode.png" alt="QR Code" onerror="this.style.display='none'">
+                        <p id="qrCodeError" class="error-message" style="display: none;">
+                            QR码生成中，请稍候...
+                        </p>
+                    </div>
+                    <p class="qr-instruction">使用手机扫描二维码<br>即可发送实时弹幕</p>
+                </div>
+                
+                <div class="local-danmaku">
+                    <h2>本地发送弹幕</h2>
+                    <input type="text" id="danmakuInput" placeholder="输入弹幕内容..." maxlength="50">
+                    <button id="sendDanmaku">发送</button>
+                </div>
+                
+                <div class="stats">
+                    <p>在线人数: <span id="onlineCount">0</span></p>
+                    <p>弹幕总数: <span id="danmakuCount">0</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="client.js"></script>
+</body>
+</html>

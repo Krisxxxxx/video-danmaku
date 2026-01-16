@@ -1,0 +1,13 @@
+{
+  "name": "video-danmaku-project",
+  "version": "1.0.0",
+  "description": "Video player with real-time danmaku and QR code access",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.14.2",
+    "qrcode": "^1.5.3"
+  }
+}
